@@ -1,0 +1,13 @@
+#!/bin/bash
+
+set -e
+
+mysql -uroot <<MYSQL_SCRIPT
+CREATE DATABASE airflow CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+CREATE USER  'airflow'@'airflow-backend' identified by 'airflow';
+grant all privileges on * . * to 'airflow'@'airflow-backend';
+flush privileges;
+MYSQL_SCRIPT
+
+echo  "MySQL user created."
+echo "Username:   $1"

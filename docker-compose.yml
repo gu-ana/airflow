@@ -1,0 +1,98 @@
+version: "3.7"
+
+networks:
+  airflow:
+
+services:
+  mysql:
+    image: mysql:5.7.22
+    command: --default-authentication-plugin=mysql_native_password --explicit_defaults_for_timestamp=1
+    restart: always
+    expose:
+      - 3306
+    networks:
+      - airflow
+    volumes:
+      - "./mysql:/var/lib/mysql"
+    env_file:
+      - mysql.env
+  redis:
+    image: redis:5.0.5
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - 6379:6379
+    networks:
+      - airflow
+  webserver:
+#    image: apache/airflow:1.10.10-2-python3.7
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+    ports:
+      - 8080:8080
+      - 1522:1522
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./plugins:/opt/airflow/plugins
+    networks:
+      - airflow
+    command: webserver
+  flower:
+#    image: apache/airflow:1.10.10-2-python3.7
+    build: .
+    env_file:
+      - .env
+    ports:
+      - 5555:5555
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/opt/airflow/logs
+    command: flower
+    networks:
+      - airflow
+  scheduler:
+#    image: apache/airflow:1.10.10-2-python3.7
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./files:/opt/airflow/files
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: scheduler
+    networks:
+      - airflow
+  worker:
+#    image: apache/airflow:1.10.10-2-python3.7
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./files:/opt/airflow/files
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: worker
+    depends_on:
+      - scheduler
+      - mysql
+    networks:
+      - airflow
+  initdb:
+    build: .
+    #entrypoint: airflow initdb
+    entrypoint: /bin/bash
+    command: -c "python3 fernet.py; airflow initdb"
+    links:
+      - mysql
+    networks:
+      - airflow
+#    depends_on:
+#      - mysql
